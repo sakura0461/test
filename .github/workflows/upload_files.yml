@@ -1,0 +1,43 @@
+name: Upload Files
+
+on:
+  workflow_dispatch:
+    inputs:
+      caseName:
+        description: 'Case Name'
+        required: true
+        default: 'Default Case Name'
+      csvContent:
+        description: 'CSV Content'
+        required: true
+        default: 'Case Number: 12345\nSubject: Test Case\nStatus: Open'
+      attachments:
+        description: 'Attachments'
+        required: true
+        default: '[]'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Create directories and files
+      run: |
+        mkdir -p cases/${{ github.event.inputs.caseName }}
+        echo "${{ github.event.inputs.csvContent }}" > cases/${{ github.event.inputs.caseName }}/${{ github.event.inputs.caseName }}.csv
+        for attachment in ${{ github.event.inputs.attachments }}; do
+          fileName=$(echo $attachment | jq -r '.fileName')
+          body=$(echo $attachment | jq -r '.body')
+          echo $body | base64 -d > cases/${{ github.event.inputs.caseName }}/$fileName
+        done
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+        git add cases
+        git commit -m "Add case files for ${{ github.event.inputs.caseName }}"
+        git push
